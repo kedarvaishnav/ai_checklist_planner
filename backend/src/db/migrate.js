@@ -1,8 +1,9 @@
-// src/db/migrate.ts
+// src/db/migrate.js
 // Run this script to create/update database tables.
 // It is called automatically on Render via the build command.
 
-import pool from './pool';
+require('dotenv/config');
+const pool = require('./pool');
 
 async function migrate() {
   const client = await pool.connect();

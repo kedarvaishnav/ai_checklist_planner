@@ -1,4 +1,4 @@
-// src/App.tsx
+// src/App.jsx
 // Root component. Sets up React Router and authentication context.
 //
 // Routes:

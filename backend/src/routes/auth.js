@@ -1,14 +1,14 @@
-// src/routes/auth.ts
+// src/routes/auth.js
 // POST /api/auth/register  — create a new account
 // POST /api/auth/login     — sign in and receive a JWT
 // GET  /api/auth/me        — get current user info (requires auth)
 
-import { Router, Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { z } from 'zod';
-import pool from '../db/pool';
-import { requireAuth } from '../middleware/auth';
+const { Router } = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { z } = require('zod');
+const pool = require('../db/pool');
+const { requireAuth } = require('../middleware/auth');
 
 const router = Router();
 
@@ -24,14 +24,14 @@ const loginSchema = z.object({
 });
 
 // Helper: sign a JWT for a given user id
-function signToken(userId: number): string {
+function signToken(userId) {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET is not set');
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
 }
 
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
@@ -62,7 +62,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid email or password' });
@@ -91,7 +91,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // GET /api/auth/me  (protected)
-router.get('/me', requireAuth, async (req: Request, res: Response) => {
+router.get('/me', requireAuth, async (req, res) => {
   const result = await pool.query('SELECT id, email, created_at FROM users WHERE id = $1', [req.userId]);
   if (!result.rows[0]) {
     res.status(404).json({ error: 'User not found' });
@@ -100,4 +100,4 @@ router.get('/me', requireAuth, async (req: Request, res: Response) => {
   res.json({ user: result.rows[0] });
 });
 
-export default router;
+module.exports = router;

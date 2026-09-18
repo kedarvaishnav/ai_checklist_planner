@@ -2,12 +2,11 @@
   "name": "ai-checklist-backend",
   "version": "1.0.0",
   "description": "Backend API for AI Checklist Planner",
-  "main": "dist/index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "db:migrate": "node src/db/migrate.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -21,13 +20,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20.14.10",
-    "@types/pg": "^8.11.6",
-    "tsx": "^4.16.2",
-    "typescript": "^5.5.3"
+    "nodemon": "^3.1.4"
   }
 }

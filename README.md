@@ -8,36 +8,37 @@ A checklist app with a React frontend, Node.js/Express backend, and PostgreSQL d
 
 ```
 ai-checklist-fullstack/
-├── frontend/            ← React + Vite + Tailwind
+├── frontend/            ← React + Vite + Tailwind (JavaScript)
 │   └── src/
-│       ├── App.tsx               — routing setup
+│       ├── App.jsx               — routing setup
 │       ├── context/
-│       │   └── AuthContext.tsx   — login state for the whole app
+│       │   └── AuthContext.jsx   — login state for the whole app
 │       ├── pages/
-│       │   ├── AuthPage.tsx          — login / register
-│       │   ├── MyChecklistsPage.tsx  — list of saved checklists
-│       │   ├── NewChecklistPage.tsx  — paste plan → generate
-│       │   └── ChecklistPage.tsx     — view + tick off tasks
+│       │   ├── AuthPage.jsx          — login / register
+│       │   ├── MyChecklistsPage.jsx  — list of saved checklists
+│       │   ├── NewChecklistPage.jsx  — paste plan → generate
+│       │   └── ChecklistPage.jsx     — view + tick off tasks
 │       ├── components/
-│       │   ├── ProtectedRoute.tsx    — redirects to /auth if not logged in
-│       │   ├── CategorySection.tsx
-│       │   ├── TaskItem.tsx
-│       │   ├── ProgressBar.tsx
-│       │   └── CopyPromptButton.tsx
+│       │   ├── ProtectedRoute.jsx    — redirects to /auth if not logged in
+│       │   ├── CategorySection.jsx
+│       │   ├── TaskItem.jsx
+│       │   ├── ProgressBar.jsx
+│       │   └── CopyPromptButton.jsx
 │       └── utils/
-│           ├── api.ts    — all HTTP calls to the backend
-│           └── parser.ts — converts raw text to categories/tasks
-└── backend/             ← Node.js + Express + PostgreSQL
+│           ├── api.js    — all HTTP calls to the backend
+│           ├── parser.js — converts raw text to categories/tasks
+│           └── prompt.js — AI prompt template
+└── backend/             ← Node.js + Express + PostgreSQL (JavaScript)
     └── src/
-        ├── index.ts          — Express app entry point
+        ├── index.js          — Express app entry point
         ├── db/
-        │   ├── pool.ts       — shared PostgreSQL connection pool
-        │   └── migrate.ts    — creates all tables
+        │   ├── pool.js       — shared PostgreSQL connection pool
+        │   └── migrate.js    — creates all tables
         ├── middleware/
-        │   └── auth.ts       — JWT verification middleware
+        │   └── auth.js       — JWT verification middleware
         └── routes/
-            ├── auth.ts       — register, login, me
-            └── checklists.ts — CRUD for checklists + task toggling
+            ├── auth.js       — register, login, me
+            └── checklists.js — CRUD for checklists + task toggling
 ```
 
 ---
@@ -129,12 +130,6 @@ DATABASE_URL=postgresql://...
 ### CORS error in browser
 Your frontend is running on a different port than `FRONTEND_URL` in `backend/.env`. Check what port Vite is using (it shows in the terminal) and update `FRONTEND_URL` to match, then restart the backend.
 
-### `Cannot find module 'dist/db/migrate.js'`
-The `db:migrate` script needs `tsx`, not `node`. Make sure your `backend/package.json` has:
-```json
-"db:migrate": "tsx src/db/migrate.ts"
-```
-
 ### Backend crashes immediately after starting
 Check your `backend/.env` file is inside the `backend/` folder (not the root) and has no quotes around values.
 
@@ -154,8 +149,7 @@ All checklist endpoints require `Authorization: Bearer <token>`.
 | GET | `/api/auth/me` | Get current user |
 | GET | `/api/checklists` | List all checklists |
 | POST | `/api/checklists` | Create a checklist |
-| GET | `/api/checklists/:id` | Get checklist with tasks |
+| GET | `/api/checklists/:id` | Get checklist with categories + tasks |
 | PUT | `/api/checklists/:id` | Update title |
 | DELETE | `/api/checklists/:id` | Delete checklist |
 | PATCH | `/api/checklists/:id/tasks/:taskId` | Toggle task completed |
-

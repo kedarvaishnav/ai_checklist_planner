@@ -1,20 +1,19 @@
-// src/pages/ChecklistPage.tsx
+// src/pages/ChecklistPage.jsx
 // Shows a single checklist with all its categories and tasks.
 // Toggling a task calls the backend API and updates the UI optimistically.
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { checklistApi } from '../utils/api';
-import type { ApiChecklist } from '../utils/api';
 import CategorySection from '../components/CategorySection';
 import ProgressBar from '../components/ProgressBar';
 import { calculateProgress } from '../utils/parser';
 
 export default function ChecklistPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  const [checklist, setChecklist] = useState<ApiChecklist | null>(null);
+  const [checklist, setChecklist] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -33,7 +32,7 @@ export default function ChecklistPage() {
   }, [id]);
 
   // Optimistic toggle: update UI immediately, then sync with backend
-  const handleToggleTask = async (categoryId: number, taskId: number) => {
+  const handleToggleTask = async (categoryId, taskId) => {
     if (!checklist) return;
 
     // Optimistic update

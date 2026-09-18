@@ -1,10 +1,4 @@
-interface ProgressBarProps {
-  completed: number;
-  total: number;
-  percentage: number;
-}
-
-export default function ProgressBar({ completed, total, percentage }: ProgressBarProps) {
+export default function ProgressBar({ completed, total, percentage }) {
   return (
     <div className="w-full">
       <div className="flex items-baseline justify-between mb-2">

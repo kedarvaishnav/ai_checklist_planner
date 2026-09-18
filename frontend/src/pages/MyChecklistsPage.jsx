@@ -1,18 +1,17 @@
-// src/pages/MyChecklistsPage.tsx
+// src/pages/MyChecklistsPage.jsx
 // Shows all saved checklists for the logged-in user.
 // From here they can open, delete, or create a new one.
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checklistApi } from '../utils/api';
-import type { ChecklistSummary } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function MyChecklistsPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [checklists, setChecklists] = useState<ChecklistSummary[]>([]);
+  const [checklists, setChecklists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,7 +23,7 @@ export default function MyChecklistsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id) => {
     if (!confirm('Delete this checklist? This cannot be undone.')) return;
     await checklistApi.delete(id);
     setChecklists((prev) => prev.filter((c) => c.id !== id));

@@ -1,4 +1,4 @@
-// src/routes/checklists.ts
+// src/routes/checklists.js
 // All routes here are protected — they require a valid JWT.
 //
 // GET    /api/checklists           — list all checklists for the logged-in user
@@ -9,10 +9,10 @@
 //
 // PATCH  /api/checklists/:id/tasks/:taskId  — toggle a task's completed status
 
-import { Router, Request, Response } from 'express';
-import { z } from 'zod';
-import pool from '../db/pool';
-import { requireAuth } from '../middleware/auth';
+const { Router } = require('express');
+const { z } = require('zod');
+const pool = require('../db/pool');
+const { requireAuth } = require('../middleware/auth');
 
 const router = Router();
 
@@ -42,7 +42,7 @@ const updateChecklistSchema = z.object({
 });
 
 // Helper: fetch a checklist and verify it belongs to the requesting user
-async function getOwnedChecklist(checklistId: number, userId: number) {
+async function getOwnedChecklist(checklistId, userId) {
   const result = await pool.query(
     'SELECT * FROM checklists WHERE id = $1 AND user_id = $2',
     [checklistId, userId]
@@ -51,7 +51,7 @@ async function getOwnedChecklist(checklistId: number, userId: number) {
 }
 
 // Helper: load full checklist data (categories + tasks)
-async function loadChecklistFull(checklistId: number) {
+async function loadChecklistFull(checklistId) {
   const checklistResult = await pool.query(
     'SELECT id, title, raw_input, created_at, updated_at FROM checklists WHERE id = $1',
     [checklistId]
@@ -93,7 +93,7 @@ async function loadChecklistFull(checklistId: number) {
 }
 
 // GET /api/checklists
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req, res) => {
   const result = await pool.query(
     `SELECT id, title, created_at, updated_at
      FROM checklists
@@ -105,7 +105,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /api/checklists
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req, res) => {
   const parsed = createChecklistSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
@@ -156,11 +156,11 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/checklists/:id
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const owned = await getOwnedChecklist(id, req.userId!);
+  const owned = await getOwnedChecklist(id, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
   const full = await loadChecklistFull(id);
@@ -168,11 +168,11 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // PUT /api/checklists/:id  — update title
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const owned = await getOwnedChecklist(id, req.userId!);
+  const owned = await getOwnedChecklist(id, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
   const parsed = updateChecklistSchema.safeParse(req.body);
@@ -186,11 +186,11 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/checklists/:id
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const owned = await getOwnedChecklist(id, req.userId!);
+  const owned = await getOwnedChecklist(id, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
   // Cascade deletes categories and tasks automatically (set in migration)
@@ -199,7 +199,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // PATCH /api/checklists/:id/tasks/:taskId  — toggle completed
-router.patch('/:id/tasks/:taskId', async (req: Request, res: Response) => {
+router.patch('/:id/tasks/:taskId', async (req, res) => {
   const checklistId = parseInt(req.params.id, 10);
   const taskId = parseInt(req.params.taskId, 10);
 
@@ -209,7 +209,7 @@ router.patch('/:id/tasks/:taskId', async (req: Request, res: Response) => {
   }
 
   // Verify ownership by joining through the checklist
-  const owned = await getOwnedChecklist(checklistId, req.userId!);
+  const owned = await getOwnedChecklist(checklistId, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
   // Toggle the task's completed state
@@ -235,4 +235,4 @@ router.patch('/:id/tasks/:taskId', async (req: Request, res: Response) => {
   res.json({ id: result.rows[0].id, completed: result.rows[0].completed });
 });
 
-export default router;
+module.exports = router;

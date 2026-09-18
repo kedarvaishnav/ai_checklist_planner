@@ -1,5 +1,3 @@
-import type { Category, Task } from '../types/checklist';
-
 /**
  * Parses raw ChatGPT-style plan text into structured Category/Task data.
  *
@@ -12,14 +10,14 @@ import type { Category, Task } from '../types/checklist';
  *   headers as shown in the example format).
  * - Empty lines are ignored.
  */
-export function parseChecklist(input: string): Category[] {
+export function parseChecklist(input) {
   const lines = input
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  const categories: Category[] = [];
-  let currentCategory: Category | null = null;
+  const categories = [];
+  let currentCategory = null;
   let categoryIndex = 0;
   let taskIndex = 0;
 
@@ -40,7 +38,7 @@ export function parseChecklist(input: string): Category[] {
         categories.push(currentCategory);
       }
 
-      const task: Task = {
+      const task = {
         id: `task-${taskIndex++}`,
         title,
         completed: false,
@@ -63,11 +61,7 @@ export function parseChecklist(input: string): Category[] {
   return categories;
 }
 
-export function calculateProgress(categories: Category[]): {
-  completed: number;
-  total: number;
-  percentage: number;
-} {
+export function calculateProgress(categories) {
   let completed = 0;
   let total = 0;
 

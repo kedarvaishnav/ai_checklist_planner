@@ -1,12 +1,6 @@
-﻿import { useState } from 'react';
-import type { Task } from '../types/checklist';
+import { useState } from 'react';
 
-interface TaskItemProps {
-  task: Task;
-  onToggle: () => void;
-}
-
-export default function TaskItem({ task, onToggle }: TaskItemProps) {
+export default function TaskItem({ task, onToggle }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {

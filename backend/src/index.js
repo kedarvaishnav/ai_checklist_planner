@@ -1,14 +1,14 @@
-// src/index.ts
+// src/index.js
 // Entry point for the Express server.
 // Starts the server, registers all middleware and routes.
 
-import 'dotenv/config'; // Load .env file in development
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import authRoutes from './routes/auth';
-import checklistRoutes from './routes/checklists';
+require('dotenv/config'); // Load .env file in development
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const authRoutes = require('./routes/auth');
+const checklistRoutes = require('./routes/checklists');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -53,7 +53,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ─── Error handler ────────────────────────────────────────────────────────
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });

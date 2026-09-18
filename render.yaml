@@ -14,7 +14,7 @@ services:
     name: ai-checklist-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm ci --include=dev && npm run build && npm run db:migrate
+    buildCommand: npm ci && npm run db:migrate
     startCommand: npm start
     envVars:
       - key: DATABASE_URL

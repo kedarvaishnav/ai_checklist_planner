@@ -1,13 +1,6 @@
-import type { Category } from '../types/checklist';
 import TaskItem from './TaskItem';
 
-interface CategorySectionProps {
-  category: Category;
-  index: number;
-  onToggleTask: (taskId: string) => void;
-}
-
-export default function CategorySection({ category, index, onToggleTask }: CategorySectionProps) {
+export default function CategorySection({ category, index, onToggleTask }) {
   const total = category.tasks.length;
   const completed = category.tasks.filter((t) => t.completed).length;
 

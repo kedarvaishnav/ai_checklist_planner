@@ -1,9 +1,8 @@
-// src/pages/AuthPage.tsx
+// src/pages/AuthPage.jsx
 // Combined login + register page.
 // Switches between the two modes with a tab toggle.
 
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,13 +10,13 @@ export default function AuthPage() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -50,7 +49,7 @@ export default function AuthPage() {
 
         {/* Tab toggle */}
         <div className="flex rounded-xl border border-line overflow-hidden mb-6">
-          {(['login', 'register'] as const).map((m) => (
+          {['login', 'register'].map((m) => (
             <button
               key={m}
               type="button"

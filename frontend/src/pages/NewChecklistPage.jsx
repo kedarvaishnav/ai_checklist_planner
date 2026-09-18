@@ -1,9 +1,8 @@
-// src/pages/NewChecklistPage.tsx
+// src/pages/NewChecklistPage.jsx
 // The main "paste your plan → generate checklist" page.
 // Saves to the backend instead of localStorage.
 
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parseChecklist } from '../utils/parser';
 import { checklistApi } from '../utils/api';
@@ -17,7 +16,7 @@ export default function NewChecklistPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleGenerate = async (e: FormEvent) => {
+  const handleGenerate = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
