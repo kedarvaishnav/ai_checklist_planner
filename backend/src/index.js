@@ -20,14 +20,25 @@ app.set('trust proxy', 1);
 // helmet sets safe HTTP headers
 app.use(helmet());
 
-// CORS: allow only the frontend origin
-const allowedOrigins = process.env.FRONTEND_URL
-  ? [process.env.FRONTEND_URL]
-  : ['http://localhost:5173']; // Vite dev server default
-
+// CORS: allow frontend origins
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like curl, health checks, server-to-server)
+      if (!origin) return callback(null, true);
+      if (!process.env.FRONTEND_URL || process.env.FRONTEND_URL === '*') {
+        return callback(null, true);
+      }
+      const allowed = process.env.FRONTEND_URL.split(',').map((u) => u.trim());
+      if (allowed.includes(origin)) {
+        return callback(null, true);
+      }
+      // If deployed on Vercel/Render, allow any Vercel/Render preview domain
+      if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
   })
 );
