@@ -13,6 +13,9 @@ const checklistRoutes = require('./routes/checklists');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Trust reverse proxy (Render load balancer / ingress)
+app.set('trust proxy', 1);
+
 // ─── Security middleware ───────────────────────────────────────────────────
 // helmet sets safe HTTP headers
 app.use(helmet());
