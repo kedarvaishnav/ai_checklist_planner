@@ -5,7 +5,22 @@ require('dotenv/config');
 const pool = require('./pool');
 
 async function migrate(shouldClosePool = false) {
-  const client = await pool.connect();
+  let client;
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      attempts++;
+      client = await pool.connect();
+      break;
+    } catch (err) {
+      if (attempts >= maxAttempts) throw err;
+      console.warn(`Database connection attempt ${attempts} failed (${err.message}), retrying in 3s...`);
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  }
+
   try {
     console.log('Running database migrations...');
 
