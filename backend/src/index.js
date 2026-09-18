@@ -62,7 +62,19 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+const { migrate } = require('./db/migrate');
+
 // ─── Start ────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on port ${PORT}`);
-});
+async function start() {
+  try {
+    await migrate(false);
+  } catch (err) {
+    console.error('Database migration at startup error:', err);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`✅ Backend running on port ${PORT}`);
+  });
+}
+
+start();

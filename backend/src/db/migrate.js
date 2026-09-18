@@ -1,11 +1,10 @@
 // src/db/migrate.js
 // Run this script to create/update database tables.
-// It is called automatically on Render via the build command.
 
 require('dotenv/config');
 const pool = require('./pool');
 
-async function migrate() {
+async function migrate(shouldClosePool = false) {
   const client = await pool.connect();
   try {
     console.log('Running database migrations...');
@@ -56,11 +55,22 @@ async function migrate() {
     console.log('✅ Migrations complete');
   } finally {
     client.release();
-    await pool.end();
+    if (shouldClosePool) {
+      await pool.end();
+    }
   }
 }
 
-migrate().catch((err) => {
-  console.error('Migration failed:', err);
-  process.exit(1);
-});
+module.exports = { migrate };
+
+if (require.main === module) {
+  migrate(true).catch((err) => {
+    // If running in Render build environment, internal database hostname (dpg-*) is only resolvable at runtime
+    if (err && (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED')) {
+      console.warn('⚠️ Database not reachable during build (internal Render host). Migrations will automatically run at server startup.');
+      process.exit(0);
+    }
+    console.error('Migration failed:', err);
+    process.exit(1);
+  });
+}
