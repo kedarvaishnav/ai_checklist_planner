@@ -27,9 +27,20 @@ export default function ChecklistPage() {
         setChecklist(data);
         setTitleInput(data.title);
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        if (
+          err.message?.toLowerCase().includes('token') ||
+          err.message?.toLowerCase().includes('expired') ||
+          err.message?.toLowerCase().includes('authorization') ||
+          err.message?.includes('401')
+        ) {
+          navigate('/auth', { replace: true });
+          return;
+        }
+        setError(err.message);
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, navigate]);
 
   // Optimistic toggle: update UI immediately, then sync with backend
   const handleToggleTask = async (categoryId, taskId) => {
@@ -55,7 +66,16 @@ export default function ChecklistPage() {
 
     try {
       await checklistApi.toggleTask(checklist.id, taskId);
-    } catch {
+    } catch (err) {
+      if (
+        err.message?.toLowerCase().includes('token') ||
+        err.message?.toLowerCase().includes('expired') ||
+        err.message?.toLowerCase().includes('authorization') ||
+        err.message?.includes('401')
+      ) {
+        navigate('/auth', { replace: true });
+        return;
+      }
       // Revert on failure
       setChecklist((prev) => {
         if (!prev) return prev;
@@ -78,9 +98,20 @@ export default function ChecklistPage() {
 
   const handleSaveTitle = async () => {
     if (!checklist || !titleInput.trim()) return;
-    await checklistApi.updateTitle(checklist.id, titleInput.trim());
-    setChecklist((prev) => prev ? { ...prev, title: titleInput.trim() } : prev);
-    setEditingTitle(false);
+    try {
+      await checklistApi.updateTitle(checklist.id, titleInput.trim());
+      setChecklist((prev) => prev ? { ...prev, title: titleInput.trim() } : prev);
+      setEditingTitle(false);
+    } catch (err) {
+      if (
+        err.message?.toLowerCase().includes('token') ||
+        err.message?.toLowerCase().includes('expired') ||
+        err.message?.toLowerCase().includes('authorization') ||
+        err.message?.includes('401')
+      ) {
+        navigate('/auth', { replace: true });
+      }
+    }
   };
 
   if (loading) {

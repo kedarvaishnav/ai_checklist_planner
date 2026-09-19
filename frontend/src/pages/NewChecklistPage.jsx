@@ -45,6 +45,15 @@ export default function NewChecklistPage() {
       // Go straight to the checklist view
       navigate(`/checklist/${checklist.id}`);
     } catch (err) {
+      if (
+        err.message?.toLowerCase().includes('token') ||
+        err.message?.toLowerCase().includes('expired') ||
+        err.message?.toLowerCase().includes('authorization') ||
+        err.message?.includes('401')
+      ) {
+        navigate('/auth', { replace: true });
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to save checklist');
     } finally {
       setLoading(false);

@@ -19,14 +19,36 @@ export default function MyChecklistsPage() {
     checklistApi
       .list()
       .then(({ checklists }) => setChecklists(checklists))
-      .catch((err) => setError(err.message))
+      .catch((err) => {
+        if (
+          err.message?.toLowerCase().includes('token') ||
+          err.message?.toLowerCase().includes('expired') ||
+          err.message?.toLowerCase().includes('authorization') ||
+          err.message?.includes('401')
+        ) {
+          navigate('/auth', { replace: true });
+          return;
+        }
+        setError(err.message);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [navigate]);
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this checklist? This cannot be undone.')) return;
-    await checklistApi.delete(id);
-    setChecklists((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await checklistApi.delete(id);
+      setChecklists((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      if (
+        err.message?.toLowerCase().includes('token') ||
+        err.message?.toLowerCase().includes('expired') ||
+        err.message?.toLowerCase().includes('authorization') ||
+        err.message?.includes('401')
+      ) {
+        navigate('/auth', { replace: true });
+      }
+    }
   };
 
   return (

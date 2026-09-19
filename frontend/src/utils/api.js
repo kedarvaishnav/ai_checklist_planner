@@ -35,6 +35,16 @@ async function request(path, options = {}) {
 
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
+  if (res.status === 401) {
+    removeToken();
+    window.dispatchEvent(new CustomEvent('auth:expired'));
+    if (window.location.pathname !== '/auth') {
+      window.location.href = '/auth';
+    }
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Invalid or expired token');
+  }
+
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || `Request failed: ${res.status}`);

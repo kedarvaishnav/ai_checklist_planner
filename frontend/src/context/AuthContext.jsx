@@ -11,17 +11,31 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Listen for auth:expired events triggered by 401 API responses
+  useEffect(() => {
+    const handleExpired = () => {
+      removeToken();
+      setUser(null);
+    };
+    window.addEventListener('auth:expired', handleExpired);
+    return () => window.removeEventListener('auth:expired', handleExpired);
+  }, []);
+
   // On first render, try to restore the session from the stored token
   useEffect(() => {
     const token = getToken();
     if (!token) {
+      setUser(null);
       setLoading(false);
       return;
     }
     authApi
       .me()
       .then(({ user }) => setUser(user))
-      .catch(() => removeToken()) // token invalid/expired — clear it
+      .catch(() => {
+        removeToken();
+        setUser(null);
+      }) // token invalid/expired — clear it
       .finally(() => setLoading(false));
   }, []);
 
