@@ -21,25 +21,21 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS: allow frontend origins
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  console.error('Fatal: FRONTEND_URL must be set to a comma-separated list of exact origins in production');
+  process.exit(1);
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like curl, health checks, server-to-server)
-      if (!origin) return callback(null, true);
-      if (!process.env.FRONTEND_URL || process.env.FRONTEND_URL === '*') {
-        return callback(null, true);
-      }
-      const allowed = process.env.FRONTEND_URL.split(',').map((u) => u.trim());
-      if (allowed.includes(origin)) {
-        return callback(null, true);
-      }
-      // If deployed on Vercel/Render, allow any Vercel/Render preview domain
-      if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
-        return callback(null, true);
-      }
-      return callback(null, false);
+      callback(null, !origin || allowedOrigins.includes(origin));
     },
-    credentials: true,
   })
 );
 
