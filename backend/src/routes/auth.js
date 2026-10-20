@@ -15,12 +15,12 @@ const router = Router();
 
 // --- Validation schemas ---
 const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().trim().toLowerCase().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
 });
 
@@ -41,25 +41,26 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   const { email, password } = parsed.data;
 
-  // Check if email is already taken
-  const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-  if (existing.rows.length > 0) {
-    res.status(409).json({ error: 'An account with that email already exists' });
-    return;
-  }
-
   // Hash password (salt rounds = 12)
   const hash = await bcrypt.hash(password, 12);
 
-  const result = await pool.query(
-    'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
-    [email, hash]
-  );
+  try {
+    const result = await pool.query(
+      'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
+      [email, hash]
+    );
 
-  const user = result.rows[0];
-  const token = signToken(user.id);
+    const user = result.rows[0];
+    const token = signToken(user.id);
 
-  res.status(201).json({ token, user: { id: user.id, email: user.email } });
+    res.status(201).json({ token, user: { id: user.id, email: user.email } });
+  } catch (err) {
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'An account with that email already exists' });
+      return;
+    }
+    throw err;
+  }
 }));
 
 // POST /api/auth/login
