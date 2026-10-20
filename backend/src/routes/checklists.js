@@ -152,11 +152,16 @@ router.post('/', asyncHandler(async (req, res) => {
       );
       const categoryId = catResult.rows[0].id;
 
-      for (let taskPos = 0; taskPos < cat.tasks.length; taskPos++) {
-        const task = cat.tasks[taskPos];
+      if (cat.tasks.length > 0) {
+        const titles = cat.tasks.map((t) => t.title);
+        const completeds = cat.tasks.map((t) => t.completed ?? false);
+        const positions = cat.tasks.map((_, taskPos) => taskPos);
+
         await client.query(
-          'INSERT INTO tasks (category_id, title, completed, position) VALUES ($1, $2, $3, $4)',
-          [categoryId, task.title, task.completed, taskPos]
+          `INSERT INTO tasks (category_id, title, completed, position)
+           SELECT $1, title, completed, position
+           FROM unnest($2::text[], $3::boolean[], $4::int[]) AS t(title, completed, position)`,
+          [categoryId, titles, completeds, positions]
         );
       }
     }
