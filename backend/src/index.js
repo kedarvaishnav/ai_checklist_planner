@@ -15,6 +15,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const checklistRoutes = require('./routes/checklists');
+const generateRoutes = require('./routes/generate');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -75,6 +76,7 @@ app.use('/api/auth/register', authLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/checklists', checklistRoutes);
+app.use('/api/generate', generateRoutes);
 
 // Health check endpoint — Render uses this to verify the service is running
 app.get('/api/health', (_req, res) => {
