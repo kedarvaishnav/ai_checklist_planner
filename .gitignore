@@ -11,4 +11,6 @@ dist-ssr/
 .vscode/
 .idea/
 *.log
+AGENT_PLAN.md
+agents.md
 
