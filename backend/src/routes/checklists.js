@@ -55,6 +55,31 @@ async function getOwnedChecklist(checklistId, userId) {
   return result.rows[0] ?? null;
 }
 
+// Helper: group flat JOIN rows into category objects with tasks
+function groupCategories(rows) {
+  const categoriesMap = new Map();
+
+  for (const row of rows) {
+    if (!categoriesMap.has(row.category_id)) {
+      categoriesMap.set(row.category_id, {
+        id: row.category_id,
+        category: row.name,
+        tasks: [],
+      });
+    }
+
+    if (row.task_id !== null) {
+      categoriesMap.get(row.category_id).tasks.push({
+        id: row.task_id,
+        title: row.title,
+        completed: row.completed,
+      });
+    }
+  }
+
+  return Array.from(categoriesMap.values());
+}
+
 // Helper: load full checklist data (categories + tasks)
 async function loadChecklistFull(checklistId) {
   const checklistResult = await pool.query(
@@ -64,28 +89,16 @@ async function loadChecklistFull(checklistId) {
   const checklist = checklistResult.rows[0];
   if (!checklist) return null;
 
-  const categoriesResult = await pool.query(
-    'SELECT id, name, position FROM categories WHERE checklist_id = $1 ORDER BY position',
+  const rowsResult = await pool.query(
+    `SELECT c.id AS category_id, c.name, t.id AS task_id, t.title, t.completed
+     FROM categories c
+     LEFT JOIN tasks t ON t.category_id = c.id
+     WHERE c.checklist_id = $1
+     ORDER BY c.position, t.position`,
     [checklistId]
   );
 
-  const categories = await Promise.all(
-    categoriesResult.rows.map(async (cat) => {
-      const tasksResult = await pool.query(
-        'SELECT id, title, completed, position FROM tasks WHERE category_id = $1 ORDER BY position',
-        [cat.id]
-      );
-      return {
-        id: cat.id,
-        category: cat.name,
-        tasks: tasksResult.rows.map((t) => ({
-          id: t.id,
-          title: t.title,
-          completed: t.completed,
-        })),
-      };
-    })
-  );
+  const categories = groupCategories(rowsResult.rows);
 
   return {
     id: checklist.id,
