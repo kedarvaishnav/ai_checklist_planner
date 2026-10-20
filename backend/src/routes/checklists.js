@@ -21,22 +21,7 @@ const router = Router();
 router.use(requireAuth);
 
 // --- Validation schemas ---
-const createChecklistSchema = z.object({
-  title: z.string().trim().min(1).max(200).default('My Checklist'),
-  rawInput: z.string().min(1, 'rawInput is required').max(20000),
-  // Pre-parsed categories sent from the frontend parser
-  categories: z.array(
-    z.object({
-      category: z.string().trim().min(1).max(200),
-      tasks: z.array(
-        z.object({
-          title: z.string().trim().min(1).max(300),
-          completed: z.boolean().default(false),
-        })
-      ).max(100),
-    })
-  ).max(50),
-});
+const { createChecklistSchema } = require('../schemas/checklist');
 
 const updateChecklistSchema = z.object({
   title: z.string().min(1).max(200),
