@@ -96,9 +96,12 @@ export const checklistApi = {
   delete: (id) =>
     request(`/api/checklists/${id}`, { method: 'DELETE' }),
 
-  toggleTask: (checklistId, taskId) =>
+  toggleTask: (checklistId, taskId, completed) =>
     request(
       `/api/checklists/${checklistId}/tasks/${taskId}`,
-      { method: 'PATCH' }
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ completed }),
+      }
     ),
 };

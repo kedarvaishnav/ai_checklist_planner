@@ -42,6 +42,10 @@ const updateChecklistSchema = z.object({
   title: z.string().min(1).max(200),
 });
 
+const setTaskSchema = z.object({
+  completed: z.boolean(),
+});
+
 // Helper: fetch a checklist and verify it belongs to the requesting user
 async function getOwnedChecklist(checklistId, userId) {
   const result = await pool.query(
@@ -199,7 +203,7 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   res.json({ message: 'Deleted' });
 }));
 
-// PATCH /api/checklists/:id/tasks/:taskId  — toggle completed
+// PATCH /api/checklists/:id/tasks/:taskId  — set task completed status idempotently
 router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
   const checklistId = parseInt(req.params.id, 10);
   const taskId = parseInt(req.params.taskId, 10);
@@ -209,20 +213,26 @@ router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
     return;
   }
 
+  const parsed = setTaskSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message });
+    return;
+  }
+
   // Verify ownership by joining through the checklist
   const owned = await getOwnedChecklist(checklistId, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
-  // Toggle the task's completed state
+  // Set the task's completed state
   const result = await pool.query(
     `UPDATE tasks
-     SET completed = NOT completed
-     WHERE id = $1
+     SET completed = $1
+     WHERE id = $2
        AND category_id IN (
-         SELECT id FROM categories WHERE checklist_id = $2
+         SELECT id FROM categories WHERE checklist_id = $3
        )
      RETURNING id, completed`,
-    [taskId, checklistId]
+    [parsed.data.completed, taskId, checklistId]
   );
 
   if (result.rows.length === 0) {
