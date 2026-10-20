@@ -13,6 +13,7 @@ const { Router } = require('express');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { asyncHandler } = require('../middleware/asyncHandler');
 
 const router = Router();
 
@@ -93,7 +94,7 @@ async function loadChecklistFull(checklistId) {
 }
 
 // GET /api/checklists
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const result = await pool.query(
     `SELECT id, title, created_at, updated_at
      FROM checklists
@@ -102,10 +103,10 @@ router.get('/', async (req, res) => {
     [req.userId]
   );
   res.json({ checklists: result.rows });
-});
+}));
 
 // POST /api/checklists
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const parsed = createChecklistSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
@@ -153,10 +154,10 @@ router.post('/', async (req, res) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // GET /api/checklists/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
@@ -165,10 +166,10 @@ router.get('/:id', async (req, res) => {
 
   const full = await loadChecklistFull(id);
   res.json(full);
-});
+}));
 
 // PUT /api/checklists/:id  — update title
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
@@ -183,10 +184,10 @@ router.put('/:id', async (req, res) => {
     [parsed.data.title, id]
   );
   res.json({ message: 'Updated' });
-});
+}));
 
 // DELETE /api/checklists/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
@@ -196,10 +197,10 @@ router.delete('/:id', async (req, res) => {
   // Cascade deletes categories and tasks automatically (set in migration)
   await pool.query('DELETE FROM checklists WHERE id = $1', [id]);
   res.json({ message: 'Deleted' });
-});
+}));
 
 // PATCH /api/checklists/:id/tasks/:taskId  — toggle completed
-router.patch('/:id/tasks/:taskId', async (req, res) => {
+router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
   const checklistId = parseInt(req.params.id, 10);
   const taskId = parseInt(req.params.taskId, 10);
 
@@ -233,6 +234,6 @@ router.patch('/:id/tasks/:taskId', async (req, res) => {
   await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
 
   res.json({ id: result.rows[0].id, completed: result.rows[0].completed });
-});
+}));
 
 module.exports = router;

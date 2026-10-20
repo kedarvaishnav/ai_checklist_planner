@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { asyncHandler } = require('../middleware/asyncHandler');
 
 const router = Router();
 
@@ -31,7 +32,7 @@ function signToken(userId) {
 }
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', asyncHandler(async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
@@ -59,10 +60,10 @@ router.post('/register', async (req, res) => {
   const token = signToken(user.id);
 
   res.status(201).json({ token, user: { id: user.id, email: user.email } });
-});
+}));
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid email or password' });
@@ -88,16 +89,16 @@ router.post('/login', async (req, res) => {
 
   const token = signToken(user.id);
   res.json({ token, user: { id: user.id, email: user.email } });
-});
+}));
 
 // GET /api/auth/me  (protected)
-router.get('/me', requireAuth, async (req, res) => {
+router.get('/me', requireAuth, asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT id, email, created_at FROM users WHERE id = $1', [req.userId]);
   if (!result.rows[0]) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
   res.json({ user: result.rows[0] });
-});
+}));
 
 module.exports = router;

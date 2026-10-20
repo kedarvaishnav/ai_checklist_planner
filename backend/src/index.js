@@ -69,7 +69,10 @@ app.get('/api/health', (_req, res) => {
 
 // ─── Error handler ────────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
-  console.error('Unhandled error:', err);
+  if (err.code === '23505') {
+    return res.status(409).json({ error: 'Resource already exists' });
+  }
+  console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
