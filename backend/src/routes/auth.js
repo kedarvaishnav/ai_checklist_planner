@@ -26,9 +26,7 @@ const loginSchema = z.object({
 
 // Helper: sign a JWT for a given user id
 function signToken(userId) {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET is not set');
-  return jwt.sign({ userId }, secret, { expiresIn: '7d' });
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d', algorithm: 'HS256' });
 }
 
 // POST /api/auth/register

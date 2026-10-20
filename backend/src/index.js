@@ -3,6 +3,12 @@
 // Starts the server, registers all middleware and routes.
 
 require('dotenv/config'); // Load .env file in development
+
+if (!process.env.JWT_SECRET) {
+  console.error('Fatal: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
