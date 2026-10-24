@@ -3,7 +3,8 @@
 // Wrap your app in <AuthProvider> and use the useAuth() hook anywhere.
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { authApi, getToken, setToken, removeToken } from '../utils/api';
+import { authApi, registerAuthExpiredHandler } from '../utils/api';
+import { getToken, setToken, clearToken } from '../utils/tokenStorage';
 
 const AuthContext = createContext(null);
 
@@ -11,10 +12,17 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Register callback with api.js so 401s clear user state
+  useEffect(() => {
+    registerAuthExpiredHandler(() => {
+      setUser(null);
+    });
+  }, []);
+
   // Listen for auth:expired events triggered by 401 API responses
   useEffect(() => {
-    const handleExpired = () => {
-      removeToken();
+    const handleExpired = async () => {
+      await clearToken();
       setUser(null);
     };
     window.addEventListener('auth:expired', handleExpired);
@@ -23,36 +31,46 @@ export function AuthProvider({ children }) {
 
   // On first render, try to restore the session from the stored token
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
+    let active = true;
+
+    async function restoreSession() {
+      try {
+        const token = await getToken();
+        if (!token) {
+          if (active) setUser(null);
+          return;
+        }
+        const { user } = await authApi.me();
+        if (active) setUser(user);
+      } catch {
+        await clearToken();
+        if (active) setUser(null);
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-    authApi
-      .me()
-      .then(({ user }) => setUser(user))
-      .catch(() => {
-        removeToken();
-        setUser(null);
-      }) // token invalid/expired — clear it
-      .finally(() => setLoading(false));
+
+    restoreSession();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = async (email, password) => {
     const { token, user } = await authApi.login(email, password);
-    setToken(token);
+    await setToken(token);
     setUser(user);
   };
 
   const register = async (email, password) => {
     const { token, user } = await authApi.register(email, password);
-    setToken(token);
+    await setToken(token);
     setUser(user);
   };
 
-  const logout = () => {
-    removeToken();
+  const logout = async () => {
+    await clearToken();
     setUser(null);
   };
 
