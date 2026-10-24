@@ -31,9 +31,10 @@ const responseSchema = {
 };
 
 async function callGemini(text) {
+  const timeoutMs = parseInt(process.env.GEMINI_TIMEOUT_MS, 10) || 120000;
   const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: { timeout: 30000 },
+    httpOptions: { timeout: timeoutMs },
   });
 
   const response = await ai.models.generateContent({
