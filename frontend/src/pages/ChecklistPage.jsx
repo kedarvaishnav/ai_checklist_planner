@@ -188,7 +188,7 @@ export default function ChecklistPage() {
             </div>
           ) : (
             <div className="flex items-center gap-3 group">
-              <h1 className="font-display text-3xl sm:text-4xl font-semibold text-ink">
+              <h1 className="font-display text-2xl sm:text-4xl font-semibold text-ink break-words">
                 {checklist.title}
               </h1>
               <button

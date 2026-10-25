@@ -51,7 +51,7 @@ export default function TaskItem({ task, onToggle }) {
           </svg>
         </span>
         <span
-          className={`min-w-0 flex-1 select-text font-body text-base transition-colors ${
+          className={`min-w-0 flex-1 select-text font-body text-base transition-colors break-words ${
             task.completed ? 'text-ink-soft line-through' : 'text-ink'
           }`}
         >
