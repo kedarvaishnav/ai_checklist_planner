@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-extension/
 dist-ssr/
 .env
 .env.*
@@ -11,4 +12,6 @@ dist-ssr/
 .vscode/
 .idea/
 *.log
+AGENT_PLAN.md
+agents.md
 

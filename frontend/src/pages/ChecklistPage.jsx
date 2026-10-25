@@ -46,6 +46,15 @@ export default function ChecklistPage() {
   const handleToggleTask = async (categoryId, taskId) => {
     if (!checklist) return;
 
+    let targetCompleted = false;
+    for (const cat of checklist.categories) {
+      if (cat.id === categoryId) {
+        const found = cat.tasks.find((t) => t.id === taskId);
+        if (found) targetCompleted = !found.completed;
+        break;
+      }
+    }
+
     // Optimistic update
     setChecklist((prev) => {
       if (!prev) return prev;
@@ -56,7 +65,7 @@ export default function ChecklistPage() {
             ? {
                 ...cat,
                 tasks: cat.tasks.map((t) =>
-                  t.id === taskId ? { ...t, completed: !t.completed } : t
+                  t.id === taskId ? { ...t, completed: targetCompleted } : t
                 ),
               }
             : cat
@@ -65,7 +74,7 @@ export default function ChecklistPage() {
     });
 
     try {
-      await checklistApi.toggleTask(checklist.id, taskId);
+      await checklistApi.toggleTask(checklist.id, taskId, targetCompleted);
     } catch (err) {
       if (
         err.message?.toLowerCase().includes('token') ||
@@ -86,7 +95,7 @@ export default function ChecklistPage() {
               ? {
                   ...cat,
                   tasks: cat.tasks.map((t) =>
-                    t.id === taskId ? { ...t, completed: !t.completed } : t
+                    t.id === taskId ? { ...t, completed: !targetCompleted } : t
                   ),
                 }
               : cat
@@ -179,7 +188,7 @@ export default function ChecklistPage() {
             </div>
           ) : (
             <div className="flex items-center gap-3 group">
-              <h1 className="font-display text-3xl sm:text-4xl font-semibold text-ink">
+              <h1 className="font-display text-2xl sm:text-4xl font-semibold text-ink break-words">
                 {checklist.title}
               </h1>
               <button

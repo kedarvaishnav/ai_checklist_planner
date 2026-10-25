@@ -3,12 +3,19 @@
 // Starts the server, registers all middleware and routes.
 
 require('dotenv/config'); // Load .env file in development
+
+if (!process.env.JWT_SECRET) {
+  console.error('Fatal: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const checklistRoutes = require('./routes/checklists');
+const generateRoutes = require('./routes/generate');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -21,25 +28,21 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS: allow frontend origins
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  console.error('Fatal: FRONTEND_URL must be set to a comma-separated list of exact origins in production');
+  process.exit(1);
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like curl, health checks, server-to-server)
-      if (!origin) return callback(null, true);
-      if (!process.env.FRONTEND_URL || process.env.FRONTEND_URL === '*') {
-        return callback(null, true);
-      }
-      const allowed = process.env.FRONTEND_URL.split(',').map((u) => u.trim());
-      if (allowed.includes(origin)) {
-        return callback(null, true);
-      }
-      // If deployed on Vercel/Render, allow any Vercel/Render preview domain
-      if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
-        return callback(null, true);
-      }
-      return callback(null, false);
+      callback(null, !origin || allowedOrigins.includes(origin));
     },
-    credentials: true,
   })
 );
 
@@ -56,11 +59,24 @@ app.use(
 );
 
 // ─── Body parsing ──────────────────────────────────────────────────────────
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Too many attempts, please try again later.' },
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/checklists', checklistRoutes);
+app.use('/api/generate', generateRoutes);
 
 // Health check endpoint — Render uses this to verify the service is running
 app.get('/api/health', (_req, res) => {
@@ -69,7 +85,10 @@ app.get('/api/health', (_req, res) => {
 
 // ─── Error handler ────────────────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
-  console.error('Unhandled error:', err);
+  if (err.code === '23505') {
+    return res.status(409).json({ error: 'Resource already exists' });
+  }
+  console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
 

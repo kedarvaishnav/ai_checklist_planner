@@ -2,27 +2,24 @@
 // All HTTP calls to the backend go through this file.
 // It automatically attaches the JWT token to every request.
 
+import { getToken, setToken, clearToken } from './tokenStorage';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
-// ─── Token helpers ─────────────────────────────────────────────────────────
-// The JWT is stored in localStorage so it survives page refreshes.
+// ─── Token helpers & Auth Expired Callback ──────────────────────────────────
+export { getToken, setToken, clearToken };
+export const removeToken = clearToken;
 
-export function getToken() {
-  return localStorage.getItem('token');
-}
+let onAuthExpiredCallback = null;
 
-export function setToken(token) {
-  localStorage.setItem('token', token);
-}
-
-export function removeToken() {
-  localStorage.removeItem('token');
+export function registerAuthExpiredHandler(callback) {
+  onAuthExpiredCallback = callback;
 }
 
 // ─── Core fetch wrapper ────────────────────────────────────────────────────
 
 async function request(path, options = {}) {
-  const token = getToken();
+  const token = await getToken();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -36,9 +33,12 @@ async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    removeToken();
+    await clearToken();
+    if (typeof onAuthExpiredCallback === 'function') {
+      onAuthExpiredCallback();
+    }
     window.dispatchEvent(new CustomEvent('auth:expired'));
-    if (window.location.pathname !== '/auth') {
+    if (window.location.pathname !== '/auth' && !window.location.hash.includes('/auth')) {
       window.location.href = '/auth';
     }
     const data = await res.json().catch(() => ({}));
@@ -74,6 +74,13 @@ export const authApi = {
 
 // ─── Checklists API ────────────────────────────────────────────────────────
 
+export function generateChecklist(text) {
+  return request('/api/generate', {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+}
+
 export const checklistApi = {
   list: () =>
     request('/api/checklists'),
@@ -96,9 +103,15 @@ export const checklistApi = {
   delete: (id) =>
     request(`/api/checklists/${id}`, { method: 'DELETE' }),
 
-  toggleTask: (checklistId, taskId) =>
+  toggleTask: (checklistId, taskId, completed) =>
     request(
       `/api/checklists/${checklistId}/tasks/${taskId}`,
-      { method: 'PATCH' }
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ completed }),
+      }
     ),
+
+  generate: generateChecklist,
 };
+

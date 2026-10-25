@@ -55,24 +55,24 @@ export default function MyChecklistsPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-line bg-paper-dark/40">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-6 flex items-center justify-between">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-sage mb-1">
               AI Checklist Planner
             </p>
             <h1 className="font-display text-2xl font-semibold text-ink">My Checklists</h1>
-            <p className="font-body text-sm text-ink-soft mt-0.5">{user?.email}</p>
+            <p className="font-body text-sm text-ink-soft mt-0.5 truncate max-w-[200px] sm:max-w-none">{user?.email}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => navigate('/new')}
-              className="rounded-full bg-sage px-5 py-2.5 font-display text-sm font-medium text-paper shadow-sm transition-transform hover:-translate-y-0.5"
+              className="rounded-full bg-sage px-4 sm:px-5 py-2 sm:py-2.5 font-display text-sm font-medium text-paper shadow-sm transition-transform hover:-translate-y-0.5"
             >
               + New checklist
             </button>
             <button
               onClick={logout}
-              className="rounded-full border border-line px-5 py-2.5 font-display text-sm font-medium text-ink-soft transition-colors hover:border-terracotta hover:text-terracotta"
+              className="rounded-full border border-line px-4 sm:px-5 py-2 sm:py-2.5 font-display text-sm font-medium text-ink-soft transition-colors hover:border-terracotta hover:text-terracotta"
             >
               Sign out
             </button>

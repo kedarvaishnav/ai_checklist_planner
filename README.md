@@ -152,4 +152,4 @@ All checklist endpoints require `Authorization: Bearer <token>`.
 | GET | `/api/checklists/:id` | Get checklist with categories + tasks |
 | PUT | `/api/checklists/:id` | Update title |
 | DELETE | `/api/checklists/:id` | Delete checklist |
-| PATCH | `/api/checklists/:id/tasks/:taskId` | Toggle task completed |
+| PATCH | `/api/checklists/:id/tasks/:taskId` | Set task completed status (`{ completed: boolean }`) |

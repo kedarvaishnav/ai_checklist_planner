@@ -67,6 +67,13 @@ async function migrate(shouldClosePool = false) {
       );
     `);
 
+    // Indexes on foreign keys
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_checklists_user_id ON checklists(user_id);
+      CREATE INDEX IF NOT EXISTS idx_categories_checklist_id ON categories(checklist_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_category_id ON tasks(category_id);
+    `);
+
     console.log('✅ Migrations complete');
   } finally {
     client.release();

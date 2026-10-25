@@ -9,29 +9,28 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { asyncHandler } = require('../middleware/asyncHandler');
 
 const router = Router();
 
 // --- Validation schemas ---
 const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().trim().toLowerCase().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
 });
 
 // Helper: sign a JWT for a given user id
 function signToken(userId) {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET is not set');
-  return jwt.sign({ userId }, secret, { expiresIn: '7d' });
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d', algorithm: 'HS256' });
 }
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', asyncHandler(async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
@@ -40,29 +39,30 @@ router.post('/register', async (req, res) => {
 
   const { email, password } = parsed.data;
 
-  // Check if email is already taken
-  const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-  if (existing.rows.length > 0) {
-    res.status(409).json({ error: 'An account with that email already exists' });
-    return;
-  }
-
   // Hash password (salt rounds = 12)
   const hash = await bcrypt.hash(password, 12);
 
-  const result = await pool.query(
-    'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
-    [email, hash]
-  );
+  try {
+    const result = await pool.query(
+      'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email',
+      [email, hash]
+    );
 
-  const user = result.rows[0];
-  const token = signToken(user.id);
+    const user = result.rows[0];
+    const token = signToken(user.id);
 
-  res.status(201).json({ token, user: { id: user.id, email: user.email } });
-});
+    res.status(201).json({ token, user: { id: user.id, email: user.email } });
+  } catch (err) {
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'An account with that email already exists' });
+      return;
+    }
+    throw err;
+  }
+}));
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid email or password' });
@@ -88,16 +88,16 @@ router.post('/login', async (req, res) => {
 
   const token = signToken(user.id);
   res.json({ token, user: { id: user.id, email: user.email } });
-});
+}));
 
 // GET /api/auth/me  (protected)
-router.get('/me', requireAuth, async (req, res) => {
+router.get('/me', requireAuth, asyncHandler(async (req, res) => {
   const result = await pool.query('SELECT id, email, created_at FROM users WHERE id = $1', [req.userId]);
   if (!result.rows[0]) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
   res.json({ user: result.rows[0] });
-});
+}));
 
 module.exports = router;

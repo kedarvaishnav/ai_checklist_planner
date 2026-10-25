@@ -19,10 +19,7 @@ function requireAuth(req, res, next) {
   const token = authHeader.slice(7); // strip "Bearer "
 
   try {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error('JWT_SECRET env variable is not set');
-
-    const payload = jwt.verify(token, secret);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     req.userId = payload.userId;
     next();
   } catch {

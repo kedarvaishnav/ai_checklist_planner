@@ -13,6 +13,7 @@ const { Router } = require('express');
 const { z } = require('zod');
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { asyncHandler } = require('../middleware/asyncHandler');
 
 const router = Router();
 
@@ -20,25 +21,14 @@ const router = Router();
 router.use(requireAuth);
 
 // --- Validation schemas ---
-const createChecklistSchema = z.object({
-  title: z.string().min(1).max(200).default('My Checklist'),
-  rawInput: z.string().min(1, 'rawInput is required'),
-  // Pre-parsed categories sent from the frontend parser
-  categories: z.array(
-    z.object({
-      category: z.string(),
-      tasks: z.array(
-        z.object({
-          title: z.string(),
-          completed: z.boolean().default(false),
-        })
-      ),
-    })
-  ),
-});
+const { createChecklistSchema } = require('../schemas/checklist');
 
 const updateChecklistSchema = z.object({
   title: z.string().min(1).max(200),
+});
+
+const setTaskSchema = z.object({
+  completed: z.boolean(),
 });
 
 // Helper: fetch a checklist and verify it belongs to the requesting user
@@ -50,6 +40,31 @@ async function getOwnedChecklist(checklistId, userId) {
   return result.rows[0] ?? null;
 }
 
+// Helper: group flat JOIN rows into category objects with tasks
+function groupCategories(rows) {
+  const categoriesMap = new Map();
+
+  for (const row of rows) {
+    if (!categoriesMap.has(row.category_id)) {
+      categoriesMap.set(row.category_id, {
+        id: row.category_id,
+        category: row.name,
+        tasks: [],
+      });
+    }
+
+    if (row.task_id !== null) {
+      categoriesMap.get(row.category_id).tasks.push({
+        id: row.task_id,
+        title: row.title,
+        completed: row.completed,
+      });
+    }
+  }
+
+  return Array.from(categoriesMap.values());
+}
+
 // Helper: load full checklist data (categories + tasks)
 async function loadChecklistFull(checklistId) {
   const checklistResult = await pool.query(
@@ -59,28 +74,16 @@ async function loadChecklistFull(checklistId) {
   const checklist = checklistResult.rows[0];
   if (!checklist) return null;
 
-  const categoriesResult = await pool.query(
-    'SELECT id, name, position FROM categories WHERE checklist_id = $1 ORDER BY position',
+  const rowsResult = await pool.query(
+    `SELECT c.id AS category_id, c.name, t.id AS task_id, t.title, t.completed
+     FROM categories c
+     LEFT JOIN tasks t ON t.category_id = c.id
+     WHERE c.checklist_id = $1
+     ORDER BY c.position, t.position`,
     [checklistId]
   );
 
-  const categories = await Promise.all(
-    categoriesResult.rows.map(async (cat) => {
-      const tasksResult = await pool.query(
-        'SELECT id, title, completed, position FROM tasks WHERE category_id = $1 ORDER BY position',
-        [cat.id]
-      );
-      return {
-        id: cat.id,
-        category: cat.name,
-        tasks: tasksResult.rows.map((t) => ({
-          id: t.id,
-          title: t.title,
-          completed: t.completed,
-        })),
-      };
-    })
-  );
+  const categories = groupCategories(rowsResult.rows);
 
   return {
     id: checklist.id,
@@ -93,7 +96,7 @@ async function loadChecklistFull(checklistId) {
 }
 
 // GET /api/checklists
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const result = await pool.query(
     `SELECT id, title, created_at, updated_at
      FROM checklists
@@ -102,10 +105,10 @@ router.get('/', async (req, res) => {
     [req.userId]
   );
   res.json({ checklists: result.rows });
-});
+}));
 
 // POST /api/checklists
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const parsed = createChecklistSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
@@ -134,11 +137,16 @@ router.post('/', async (req, res) => {
       );
       const categoryId = catResult.rows[0].id;
 
-      for (let taskPos = 0; taskPos < cat.tasks.length; taskPos++) {
-        const task = cat.tasks[taskPos];
+      if (cat.tasks.length > 0) {
+        const titles = cat.tasks.map((t) => t.title);
+        const completeds = cat.tasks.map((t) => t.completed ?? false);
+        const positions = cat.tasks.map((_, taskPos) => taskPos);
+
         await client.query(
-          'INSERT INTO tasks (category_id, title, completed, position) VALUES ($1, $2, $3, $4)',
-          [categoryId, task.title, task.completed, taskPos]
+          `INSERT INTO tasks (category_id, title, completed, position)
+           SELECT $1, title, completed, position
+           FROM unnest($2::text[], $3::boolean[], $4::int[]) AS t(title, completed, position)`,
+          [categoryId, titles, completeds, positions]
         );
       }
     }
@@ -153,10 +161,10 @@ router.post('/', async (req, res) => {
   } finally {
     client.release();
   }
-});
+}));
 
 // GET /api/checklists/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
@@ -165,10 +173,10 @@ router.get('/:id', async (req, res) => {
 
   const full = await loadChecklistFull(id);
   res.json(full);
-});
+}));
 
 // PUT /api/checklists/:id  — update title
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
@@ -183,10 +191,10 @@ router.put('/:id', async (req, res) => {
     [parsed.data.title, id]
   );
   res.json({ message: 'Updated' });
-});
+}));
 
 // DELETE /api/checklists/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
@@ -196,10 +204,10 @@ router.delete('/:id', async (req, res) => {
   // Cascade deletes categories and tasks automatically (set in migration)
   await pool.query('DELETE FROM checklists WHERE id = $1', [id]);
   res.json({ message: 'Deleted' });
-});
+}));
 
-// PATCH /api/checklists/:id/tasks/:taskId  — toggle completed
-router.patch('/:id/tasks/:taskId', async (req, res) => {
+// PATCH /api/checklists/:id/tasks/:taskId  — set task completed status idempotently
+router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
   const checklistId = parseInt(req.params.id, 10);
   const taskId = parseInt(req.params.taskId, 10);
 
@@ -208,20 +216,26 @@ router.patch('/:id/tasks/:taskId', async (req, res) => {
     return;
   }
 
+  const parsed = setTaskSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message });
+    return;
+  }
+
   // Verify ownership by joining through the checklist
   const owned = await getOwnedChecklist(checklistId, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
-  // Toggle the task's completed state
+  // Set the task's completed state
   const result = await pool.query(
     `UPDATE tasks
-     SET completed = NOT completed
-     WHERE id = $1
+     SET completed = $1
+     WHERE id = $2
        AND category_id IN (
-         SELECT id FROM categories WHERE checklist_id = $2
+         SELECT id FROM categories WHERE checklist_id = $3
        )
      RETURNING id, completed`,
-    [taskId, checklistId]
+    [parsed.data.completed, taskId, checklistId]
   );
 
   if (result.rows.length === 0) {
@@ -233,6 +247,6 @@ router.patch('/:id/tasks/:taskId', async (req, res) => {
   await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
 
   res.json({ id: result.rows[0].id, completed: result.rows[0].completed });
-});
+}));
 
 module.exports = router;
