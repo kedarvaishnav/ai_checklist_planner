@@ -7,6 +7,7 @@ import { parseChecklist } from '../utils/parser';
 import { checklistApi, generateChecklist } from '../utils/api';
 import CopyPromptButton from '../components/CopyPromptButton';
 import { CHECKLIST_PROMPT } from '../utils/prompt';
+import { usePendingCapture } from '../extension/pendingCapture';
 
 export default function NewChecklistPage() {
   const navigate = useNavigate();
@@ -31,6 +32,25 @@ export default function NewChecklistPage() {
   const [savingPreview, setSavingPreview] = useState(false);
 
   const slowTimerRef = useRef(null);
+
+  const capture = usePendingCapture();
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [restrictedNotice, setRestrictedNotice] = useState(false);
+
+  useEffect(() => {
+    if (import.meta.env.MODE === 'extension') {
+      if (capture.text) {
+        setMode('generate');
+        setAiText(capture.text);
+        setSourceUrl(capture.url);
+        setRestrictedNotice(false);
+      } else if (capture.url && !capture.text) {
+        setMode('generate');
+        setSourceUrl(capture.url);
+        setRestrictedNotice(true);
+      }
+    }
+  }, [capture.text, capture.url]);
 
   useEffect(() => {
     return () => {
@@ -274,6 +294,16 @@ export default function NewChecklistPage() {
                   <label htmlFor="ai-text-input" className="font-display text-lg font-medium text-ink block mb-2">
                     Enter or paste text to convert into a checklist
                   </label>
+                  {sourceUrl && (
+                    <p className="font-mono text-xs text-ink-soft mb-2 truncate">
+                      Source: {sourceUrl}
+                    </p>
+                  )}
+                  {restrictedNotice && (
+                    <p className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-3 font-body text-sm text-amber-900 mb-3">
+                      This page cannot be read. Select text and try again.
+                    </p>
+                  )}
                   <p className="font-body text-sm text-ink-soft mb-3">
                     Paste raw notes, a blog post, an article, or instructions (minimum 20 characters).
                   </p>
