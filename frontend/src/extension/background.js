@@ -1,0 +1,1 @@
+// Extension background service worker
