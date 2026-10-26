@@ -112,6 +112,40 @@ export const checklistApi = {
       }
     ),
 
+  addCategory: (checklistId, name) =>
+    request(`/api/checklists/${checklistId}/categories`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  updateCategory: (checklistId, categoryId, name) =>
+    request(`/api/checklists/${checklistId}/categories/${categoryId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteCategory: (checklistId, categoryId) =>
+    request(`/api/checklists/${checklistId}/categories/${categoryId}`, {
+      method: 'DELETE',
+    }),
+
+  addTask: (checklistId, categoryId, title) =>
+    request(`/api/checklists/${checklistId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify({ categoryId: Number(categoryId), title }),
+    }),
+
+  updateTask: (checklistId, taskId, updates) =>
+    request(`/api/checklists/${checklistId}/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+
+  deleteTask: (checklistId, taskId) =>
+    request(`/api/checklists/${checklistId}/tasks/${taskId}`, {
+      method: 'DELETE',
+    }),
+
   generate: generateChecklist,
 };
 

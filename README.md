@@ -139,11 +139,24 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 | Method | Path | Request Body | Description |
 |---|---|---|---|
 | GET | `/api/checklists` | None | List all checklists belonging to the authenticated user. |
-| POST | `/api/checklists` | `{ "title": "...", "rawInput": "...", "categories": [...] }` | Create a new checklist with structured categories and tasks. |
+| POST | `/api/checklists` | `{ "title"?: "...", "rawInput"?: "...", "categories"?: [...] }` | Create a new checklist. `rawInput` is optional (defaults to `''`), and `categories` can be empty array `[]` (defaults to `[]`) to support starting with a blank checklist. |
 | GET | `/api/checklists/:id` | None | Fetch single checklist with categories and tasks. Enforces strict user isolation (returns 404 for checklists owned by other users). |
 | PUT | `/api/checklists/:id` | `{ "title": "..." }` | Update checklist title. |
 | DELETE | `/api/checklists/:id` | None | Delete checklist and all associated categories/tasks. |
-| PATCH | `/api/checklists/:id/tasks/:taskId` | `{ "completed": boolean }` | Set task completion status idempotently. The body explicitly specifies the target boolean state `{ completed: boolean }`. |
+| POST | `/api/checklists/:id/categories` | `{ "name": "..." }` | Create a category in the checklist. Position calculated atomically in SQL as max + 1. Trimmed, 1–200 characters. |
+| PATCH | `/api/checklists/:id/categories/:categoryId` | `{ "name": "..." }` | Rename a category in the checklist. |
+| DELETE | `/api/checklists/:id/categories/:categoryId` | None | Delete a category and all its associated tasks (cascaded delete). |
+| POST | `/api/checklists/:id/tasks` | `{ "categoryId": number, "title": "..." }` | Add a task to a category within the checklist. Position calculated atomically in SQL as max + 1. Trimmed, 1–300 characters. |
+| PATCH | `/api/checklists/:id/tasks/:taskId` | `{ "completed"?: boolean, "title"?: string }` | Update a task's title and/or toggle its completion status idempotently. At least one field is required. |
+| DELETE | `/api/checklists/:id/tasks/:taskId` | None | Delete a task from the checklist. |
+
+### Manual Checklist Creation & Editing Flow
+
+- **Start Blank Mode:** Users can choose "Start blank" mode on the New Checklist page (`/new`), enter a checklist title, and immediately create an empty checklist without pasting text or calling the AI.
+- **Category Management:** Add new categories inline directly on the checklist page (`/checklist/:id`), rename category titles inline with Save/Cancel, or delete a category and its tasks with a confirmation dialog.
+- **Task Management:** Add tasks per category using the inline input, edit/rename task titles inline, toggle checkboxes, or delete tasks with a confirmation prompt.
+- **Graceful Error Handling:** UI state updates from API responses; on network or server errors, the previous state is retained and an error banner is displayed.
+- **Side Panel Compatibility:** All manual editing controls, inputs, and buttons are responsive and tested down to 400px width for smooth operation in the Chrome side panel.
 
 ### AI Generation
 
