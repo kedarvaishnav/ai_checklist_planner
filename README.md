@@ -1,155 +1,159 @@
-# AI Checklist Planner — Full Stack
+# AI Checklist Planner — Full Stack & Chrome Extension
 
-A checklist app with a React frontend, Node.js/Express backend, and PostgreSQL database with JWT authentication.
-
----
-
-## Project structure
-
-```
-ai-checklist-fullstack/
-├── frontend/            ← React + Vite + Tailwind (JavaScript)
-│   └── src/
-│       ├── App.jsx               — routing setup
-│       ├── context/
-│       │   └── AuthContext.jsx   — login state for the whole app
-│       ├── pages/
-│       │   ├── AuthPage.jsx          — login / register
-│       │   ├── MyChecklistsPage.jsx  — list of saved checklists
-│       │   ├── NewChecklistPage.jsx  — paste plan → generate
-│       │   └── ChecklistPage.jsx     — view + tick off tasks
-│       ├── components/
-│       │   ├── ProtectedRoute.jsx    — redirects to /auth if not logged in
-│       │   ├── CategorySection.jsx
-│       │   ├── TaskItem.jsx
-│       │   ├── ProgressBar.jsx
-│       │   └── CopyPromptButton.jsx
-│       └── utils/
-│           ├── api.js    — all HTTP calls to the backend
-│           ├── parser.js — converts raw text to categories/tasks
-│           └── prompt.js — AI prompt template
-└── backend/             ← Node.js + Express + PostgreSQL (JavaScript)
-    └── src/
-        ├── index.js          — Express app entry point
-        ├── db/
-        │   ├── pool.js       — shared PostgreSQL connection pool
-        │   └── migrate.js    — creates all tables
-        ├── middleware/
-        │   └── auth.js       — JWT verification middleware
-        └── routes/
-            ├── auth.js       — register, login, me
-            └── checklists.js — CRUD for checklists + task toggling
-```
+A full-stack checklist planning system featuring a React frontend, a Node.js/Express REST API with PostgreSQL and Google Gemini structured checklist generation, and a Chrome Manifest V3 side panel extension.
 
 ---
 
-## Prerequisites
+## Deployment Architecture
 
-- Node.js 20+
-- PostgreSQL installed and running
+- **Frontend:** Deployed on **Vercel**.
+- **Backend:** Deployed on **Render** (Node.js web service).
+- **Database:** Managed **PostgreSQL on Render**.
+- **Extension:** Packaged Chrome Manifest V3 side panel communicating with the production backend.
 
 ---
 
-## Setup
+## Environment Variables
 
-### 1. Create the database
+### Frontend (`frontend/.env` / Vercel Environment Variables)
+
+| Variable | Description | Example |
+|---|---|---|
+| `VITE_API_URL` | Base URL of the backend API. Must be set on Vercel to your production Render backend URL. | `https://ai-checklist-backend.onrender.com` |
+
+### Backend (`backend/.env` / Render Environment Variables)
+
+| Variable | Required | Description | Example |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string. Automatically injected by Render when attaching PostgreSQL. | `postgresql://user:pass@host:5432/checklist_db` |
+| `DATABASE_SSL_REJECT_UNAUTHORIZED` | Yes (on Render) | Set to `false` for Render's managed PostgreSQL to allow its self-signed SSL certificates. | `false` |
+| `JWT_SECRET` | Yes | Long random secret string used to sign and verify JSON Web Tokens (JWT). | Generate with: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"` |
+| `FRONTEND_URL` | Yes | Comma-separated list of exact allowed origins for CORS. In production, must be the exact Vercel frontend URL. | `https://ai-checklist-planner.vercel.app` |
+| `GEMINI_API_KEY` | Yes | Google Gemini API key used for structured AI checklist generation. | Your Google AI Studio API key |
+| `GEMINI_MODEL` | Yes | Identifier of the Gemini model to use. Required (no silent fallback). | `gemini-3.5-flash` |
+| `GEMINI_TIMEOUT_MS` | No | Optional timeout in milliseconds for Gemini API requests (defaults to `60000`). | `60000` |
+| `TEST_DATABASE_URL` | For Tests | Dedicated test database URL for `npm test`. The test runner refuses to run if unset or if equal to `DATABASE_URL`. | `postgresql://user:pass@localhost:5432/checklist_test_db` |
+| `NODE_ENV` | Yes | Set to `production` on Render, `development` for local work, or `test` for test runner. | `production` |
+
+---
+
+## Local Development
+
+### 1. Database Setup
+
+Ensure PostgreSQL is running locally, then create the development and test databases:
 
 ```bash
+# Windows PowerShell (adjust psql path if needed)
 psql -U postgres -c "CREATE DATABASE checklist_db;"
+psql -U postgres -c "CREATE DATABASE checklist_test_db;"
 ```
 
-### 2. Set up the backend
+### 2. Backend Setup
 
 ```bash
 cd backend
-```
-
-Copy `backend/.env.example` to `backend/.env`, then fill in the values:
-```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/checklist_db
-JWT_SECRET=any-long-random-string
-FRONTEND_URL=http://localhost:5173
-NODE_ENV=development
-```
-
-Then install and migrate:
-```bash
+cp .env.example .env
+# Fill in DATABASE_URL, TEST_DATABASE_URL, JWT_SECRET, GEMINI_API_KEY, GEMINI_MODEL
 npm install
 npm run db:migrate
 npm run dev
 ```
 
-Backend runs on **http://localhost:4000**
+Backend runs on **http://localhost:4000**.
 
-### 3. Set up the frontend
+To run automated backend tests:
+```bash
+npm test
+```
 
-Open a new terminal:
+### 3. Frontend Setup
+
 ```bash
 cd frontend
-```
-
-Copy `frontend/.env.example` to `frontend/.env`, then set:
-```
-VITE_API_URL=http://localhost:4000
-```
-
-Then:
-```bash
+cp .env.example .env
+# Set VITE_API_URL=http://localhost:4000
 npm install
 npm run dev
 ```
 
-Frontend runs on **http://localhost:5173**
-
-> Safety note: keep `backend/.env` and `frontend/.env` local. Commit only `backend/.env.example` and `frontend/.env.example`.
+Frontend runs on **http://localhost:5173**.
 
 ---
 
-## Common errors and fixes
+## Chrome Extension (Manifest V3 Side Panel)
 
-### `psql` not recognized
-PostgreSQL is not in your PATH. Use the full path:
-```bash
-# Windows
-"C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -c "CREATE DATABASE checklist_db;"
-```
+The Chrome extension provides a side panel companion that lets you highlight any plan, tutorial, or article on the web and transform it into an actionable checklist with a single click.
 
-### `database "checklist_db" does not exist`
-You haven't created the database yet. Run the `CREATE DATABASE` command above first, then run migrations.
+### Build and Load Steps
 
-### `SASL: client password must be a string`
-Your `backend/.env` has quotes around the values. Remove them:
-```
-# Wrong
-DATABASE_URL="postgresql://..."
+1. In `frontend/`, ensure `VITE_API_URL` in `.env` (or environment) points to your backend:
+   ```bash
+   # For local testing:
+   VITE_API_URL=http://localhost:4000
+   # For production:
+   # VITE_API_URL=https://ai-checklist-backend.onrender.com
+   ```
+2. Build the extension bundle:
+   ```bash
+   npm run build:extension
+   ```
+   This compiles the extension into `frontend/dist-extension/` using Vite and Rolldown, injecting the verified backend origin into `manifest.json`.
+3. Open Google Chrome and navigate to `chrome://extensions`.
+4. Turn on **Developer mode** using the toggle in the top-right corner.
+5. Click **Load unpacked** and select the `frontend/dist-extension` folder.
+6. Click the extension toolbar icon to open the side panel.
 
-# Correct
-DATABASE_URL=postgresql://...
-```
+### Permissions Used & Justification
 
-### CORS error in browser
-Your frontend is running on a different port than `FRONTEND_URL` in `backend/.env`. Check what port Vite is using (it shows in the terminal) and update `FRONTEND_URL` to match, then restart the backend.
+| Permission | Justification |
+|---|---|
+| `sidePanel` | Allows the app to render inside Chrome's native side panel next to web pages without taking up a full browser tab. |
+| `contextMenus` | Registers the right-click "Generate checklist" context menu option on text selections and pages. |
+| `scripting` | Extracts user-selected text (or page content when no text is selected) to prefill the generation textarea. |
+| `storage` | Uses `chrome.storage.session` to pass captured text from the background worker to the side panel. Uses `chrome.storage.local` to safely persist JWT tokens in extension mode. |
+| `host_permissions` | Grants permission to send API requests directly to the configured `VITE_API_URL` backend without CORS restrictions in the extension sandbox. |
 
-### Backend crashes immediately after starting
-Check your `backend/.env` file is inside the `backend/` folder (not the root) and has no quotes around values.
+### Privacy & Data Handling Guarantee
 
-### `ECONNREFUSED` in Postman or browser
-The backend server isn't running. Start it with `npm run dev` in the `backend/` folder.
+- Page text is captured to local session storage only when the user explicitly triggers the right-click context menu action.
+- **No text or page data is sent to the backend server or the Gemini API automatically.** Data is transmitted only after the user reviews the prefilled text in the side panel and explicitly clicks the **Generate** button.
+- Once a generated checklist is saved, the captured text is cleared from session storage and will not reappear if the panel is remounted.
 
 ---
 
-## API reference
+## API Reference
 
-All checklist endpoints require `Authorization: Bearer <token>`.
+All protected endpoints require an `Authorization: Bearer <token>` header.
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Create account → returns `{ token, user }` |
-| POST | `/api/auth/login` | Sign in → returns `{ token, user }` |
-| GET | `/api/auth/me` | Get current user |
-| GET | `/api/checklists` | List all checklists |
-| POST | `/api/checklists` | Create a checklist |
-| GET | `/api/checklists/:id` | Get checklist with categories + tasks |
-| PUT | `/api/checklists/:id` | Update title |
-| DELETE | `/api/checklists/:id` | Delete checklist |
-| PATCH | `/api/checklists/:id/tasks/:taskId` | Set task completed status (`{ completed: boolean }`) |
+### Authentication
+
+| Method | Path | Request Body | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | `{ "email": "...", "password": "..." }` | Register new account. Returns `{ token, user }`. Passwords must be $\ge$ 8 chars. Case-insensitive email uniqueness. |
+| POST | `/api/auth/login` | `{ "email": "...", "password": "..." }` | Sign in. Returns `{ token, user }`. |
+| GET | `/api/auth/me` | None | Get currently authenticated user details. |
+
+### Checklists
+
+| Method | Path | Request Body | Description |
+|---|---|---|---|
+| GET | `/api/checklists` | None | List all checklists belonging to the authenticated user. |
+| POST | `/api/checklists` | `{ "title": "...", "rawInput": "...", "categories": [...] }` | Create a new checklist with structured categories and tasks. |
+| GET | `/api/checklists/:id` | None | Fetch single checklist with categories and tasks. Enforces strict user isolation (returns 404 for checklists owned by other users). |
+| PUT | `/api/checklists/:id` | `{ "title": "..." }` | Update checklist title. |
+| DELETE | `/api/checklists/:id` | None | Delete checklist and all associated categories/tasks. |
+| PATCH | `/api/checklists/:id/tasks/:taskId` | `{ "completed": boolean }` | Set task completion status idempotently. The body explicitly specifies the target boolean state `{ completed: boolean }`. |
+
+### AI Generation
+
+| Method | Path | Request Body | Description |
+|---|---|---|---|
+| POST | `/api/generate` | `{ "text": "..." }` | Analyze raw text ($20 - 20000$ characters) with Google Gemini using structured JSON schema. Returns `{ "categories": [ { "category": "...", "tasks": [ { "title": "..." } ] } ] }`. Returns `503` if AI is not configured (`GEMINI_API_KEY` or `GEMINI_MODEL` unset). |
+
+---
+
+## Known Limitations
+
+1. **No Token Refresh:** JWT tokens expire after 7 days. When expired, users are redirected to sign in again.
+2. **Free-Tier Cold Starts:** On free hosting tiers (such as Render free instances), inactive instances spin down after inactivity, causing initial requests to take up to 30–50 seconds to respond.
