@@ -33,6 +33,10 @@ export default function NewChecklistPage() {
   const [previewCategories, setPreviewCategories] = useState(null);
   const [savingPreview, setSavingPreview] = useState(false);
 
+  // Blank flow state
+  const [blankLoading, setBlankLoading] = useState(false);
+  const [blankError, setBlankError] = useState('');
+
   const slowTimerRef = useRef(null);
 
   const capture = usePendingCapture();
@@ -181,6 +185,36 @@ export default function NewChecklistPage() {
     }
   };
 
+  // ─── 3. Start Blank Flow ──────────────────────────────────────────────────
+  const handleBlankSubmit = async (e) => {
+    e.preventDefault();
+    setBlankLoading(true);
+    setBlankError('');
+
+    try {
+      const checklist = await checklistApi.create({
+        title: title.trim() || 'My Checklist',
+        rawInput: '',
+        categories: [],
+      });
+
+      navigate(`/checklist/${checklist.id}`);
+    } catch (err) {
+      if (
+        err.message?.toLowerCase().includes('token') ||
+        err.message?.toLowerCase().includes('expired') ||
+        err.message?.toLowerCase().includes('authorization') ||
+        err.message?.includes('401')
+      ) {
+        navigate('/auth', { replace: true });
+        return;
+      }
+      setBlankError(err instanceof Error ? err.message : 'Failed to create checklist');
+    } finally {
+      setBlankLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -199,11 +233,11 @@ export default function NewChecklistPage() {
             New Checklist
           </h1>
           <p className="mt-4 max-w-xl font-body text-ink-soft text-base sm:text-lg leading-relaxed">
-            Create an actionable checklist by pasting a formatted plan or generating one directly from text with AI.
+            Create an actionable checklist by pasting a formatted plan, generating one from text with AI, or starting blank.
           </p>
 
           {/* Mode Tabs */}
-          <div className="mt-6 flex gap-2">
+          <div className="mt-6 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setMode('paste')}
@@ -226,6 +260,17 @@ export default function NewChecklistPage() {
             >
               Generate from text (AI)
             </button>
+            <button
+              type="button"
+              onClick={() => setMode('blank')}
+              className={`rounded-full px-4 py-2 font-display text-sm font-medium transition-colors ${
+                mode === 'blank'
+                  ? 'bg-sage text-paper shadow-sm'
+                  : 'bg-white/70 border border-line text-ink-soft hover:text-ink'
+              }`}
+            >
+              Start blank
+            </button>
           </div>
         </div>
       </header>
@@ -246,6 +291,29 @@ export default function NewChecklistPage() {
             className="w-full rounded-2xl border border-line bg-white/70 px-4 py-3 font-body text-base text-ink placeholder:text-ink-soft/60 shadow-sm focus:outline-none focus:ring-2 focus:ring-sage"
           />
         </div>
+
+        {/* ─── Mode 3: Start blank ─── */}
+        {mode === 'blank' && (
+          <form onSubmit={handleBlankSubmit} className="flex flex-col gap-4">
+            <p className="font-body text-sm text-ink-soft">
+              Start with an empty checklist and add your categories and tasks manually.
+            </p>
+            {blankError && (
+              <div className="rounded-xl bg-rust/10 border border-rust/30 px-4 py-3 font-body text-sm text-rust">
+                {blankError}
+              </div>
+            )}
+            <div>
+              <button
+                type="submit"
+                disabled={blankLoading}
+                className="rounded-full bg-sage px-6 py-3 font-display text-sm font-medium text-paper transition-all hover:bg-sage-dark disabled:opacity-50"
+              >
+                {blankLoading ? 'Creating…' : 'Create blank checklist'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* ─── Mode 1: Paste and Parse ─── */}
         {mode === 'paste' && (

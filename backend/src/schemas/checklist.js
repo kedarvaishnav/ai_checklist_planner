@@ -29,7 +29,7 @@ const updateCategorySchema = z.object({
 });
 
 const createTaskSchema = z.object({
-  categoryId: z.number().int().positive('Category ID must be a positive integer'),
+  categoryId: z.coerce.number().int().positive('Category ID must be a positive integer'),
   title: z.string().trim().min(1, 'Task title is required').max(300, 'Task title cannot exceed 300 characters'),
 });
 
