@@ -38,7 +38,7 @@ async function callGemini(text) {
   });
 
   const response = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    model: process.env.GEMINI_MODEL,
     contents: text,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -51,7 +51,7 @@ async function callGemini(text) {
 }
 
 async function generateChecklist(text) {
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY || !process.env.GEMINI_MODEL) {
     const err = new Error('AI generation is not configured');
     err.status = 503;
     throw err;
@@ -71,7 +71,10 @@ async function generateChecklist(text) {
         }
       }
       return generatedChecklistSchema.parse(raw);
-    } catch {
+    } catch (err) {
+      const statusPart = err && (err.status || err.statusCode) ? ` status ${err.status || err.statusCode}:` : '';
+      const messagePart = (err && err.message ? String(err.message) : 'Unknown error').slice(0, 300);
+      console.error(`Attempt ${attempt + 1} failed:${statusPart} ${messagePart}`);
       if (attempt === 1) {
         const error = new Error('Failed to generate valid checklist from AI');
         error.status = 502;

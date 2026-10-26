@@ -7,7 +7,8 @@
     "dev": "nodemon src/index.js",
     "build": "echo 'Build complete'",
     "start": "node src/index.js",
-    "db:migrate": "node src/db/migrate.js"
+    "db:migrate": "node src/db/migrate.js",
+    "test": "node --test --test-concurrency=1"
   },
   "dependencies": {
     "@google/genai": "^2.30.0",
@@ -22,6 +23,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "supertest": "^7.3.1"
   }
 }

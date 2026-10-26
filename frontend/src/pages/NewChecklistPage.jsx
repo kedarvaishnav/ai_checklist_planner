@@ -9,6 +9,8 @@ import CopyPromptButton from '../components/CopyPromptButton';
 import { CHECKLIST_PROMPT } from '../utils/prompt';
 import { usePendingCapture } from '../extension/pendingCapture';
 
+let consumedCaptureText = '';
+
 export default function NewChecklistPage() {
   const navigate = useNavigate();
 
@@ -39,7 +41,7 @@ export default function NewChecklistPage() {
 
   useEffect(() => {
     if (import.meta.env.MODE === 'extension') {
-      if (capture.text) {
+      if (capture.text && capture.text !== consumedCaptureText) {
         setMode('generate');
         setAiText(capture.text);
         setSourceUrl(capture.url);
@@ -82,6 +84,11 @@ export default function NewChecklistPage() {
           tasks: cat.tasks.map((t) => ({ title: t.title, completed: t.completed })),
         })),
       });
+
+      if (capture && typeof capture.clear === 'function' && capture.text) {
+        consumedCaptureText = capture.text;
+        capture.clear();
+      }
 
       navigate(`/checklist/${checklist.id}`);
     } catch (err) {
@@ -151,6 +158,11 @@ export default function NewChecklistPage() {
         rawInput: aiText,
         categories: previewCategories,
       });
+
+      consumedCaptureText = capture.text || aiText;
+      if (capture && typeof capture.clear === 'function') {
+        capture.clear();
+      }
 
       navigate(`/checklist/${checklist.id}`);
     } catch (err) {
