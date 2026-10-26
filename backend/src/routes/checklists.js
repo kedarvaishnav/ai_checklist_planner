@@ -21,14 +21,16 @@ const router = Router();
 router.use(requireAuth);
 
 // --- Validation schemas ---
-const { createChecklistSchema } = require('../schemas/checklist');
+const {
+  createChecklistSchema,
+  createCategorySchema,
+  updateCategorySchema,
+  createTaskSchema,
+  patchTaskSchema,
+} = require('../schemas/checklist');
 
 const updateChecklistSchema = z.object({
   title: z.string().min(1).max(200),
-});
-
-const setTaskSchema = z.object({
-  completed: z.boolean(),
 });
 
 // Helper: fetch a checklist and verify it belongs to the requesting user
@@ -206,7 +208,206 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   res.json({ message: 'Deleted' });
 }));
 
-// PATCH /api/checklists/:id/tasks/:taskId  — set task completed status idempotently
+// POST /api/checklists/:id/categories — add category to checklist
+router.post('/:id/categories', asyncHandler(async (req, res) => {
+  const checklistId = parseInt(req.params.id, 10);
+  if (isNaN(checklistId)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+
+  const parsed = createCategorySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message });
+    return;
+  }
+
+  const owned = await getOwnedChecklist(checklistId, req.userId);
+  if (!owned) {
+    res.status(404).json({ error: 'Checklist not found' });
+    return;
+  }
+
+  const result = await pool.query(
+    `INSERT INTO categories (checklist_id, name, position)
+     VALUES ($1, $2, COALESCE((SELECT MAX(position) FROM categories WHERE checklist_id = $1), -1) + 1)
+     RETURNING id, checklist_id, name, position`,
+    [checklistId, parsed.data.name]
+  );
+
+  await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
+
+  const row = result.rows[0];
+  res.status(201).json({
+    id: row.id,
+    checklistId: row.checklist_id,
+    category: row.name,
+    name: row.name,
+    position: row.position,
+    tasks: [],
+  });
+}));
+
+// PATCH /api/checklists/:id/categories/:categoryId — rename category
+router.patch('/:id/categories/:categoryId', asyncHandler(async (req, res) => {
+  const checklistId = parseInt(req.params.id, 10);
+  const categoryId = parseInt(req.params.categoryId, 10);
+  if (isNaN(checklistId) || isNaN(categoryId)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+
+  const parsed = updateCategorySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message });
+    return;
+  }
+
+  const owned = await getOwnedChecklist(checklistId, req.userId);
+  if (!owned) {
+    res.status(404).json({ error: 'Checklist not found' });
+    return;
+  }
+
+  const result = await pool.query(
+    `UPDATE categories
+     SET name = $1
+     WHERE id = $2 AND checklist_id = $3
+     RETURNING id, checklist_id, name, position`,
+    [parsed.data.name, categoryId, checklistId]
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Category not found' });
+    return;
+  }
+
+  await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
+
+  const row = result.rows[0];
+  res.json({
+    id: row.id,
+    checklistId: row.checklist_id,
+    category: row.name,
+    name: row.name,
+    position: row.position,
+  });
+}));
+
+// DELETE /api/checklists/:id/categories/:categoryId — delete category
+router.delete('/:id/categories/:categoryId', asyncHandler(async (req, res) => {
+  const checklistId = parseInt(req.params.id, 10);
+  const categoryId = parseInt(req.params.categoryId, 10);
+  if (isNaN(checklistId) || isNaN(categoryId)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+
+  const owned = await getOwnedChecklist(checklistId, req.userId);
+  if (!owned) {
+    res.status(404).json({ error: 'Checklist not found' });
+    return;
+  }
+
+  const result = await pool.query(
+    'DELETE FROM categories WHERE id = $1 AND checklist_id = $2 RETURNING id',
+    [categoryId, checklistId]
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Category not found' });
+    return;
+  }
+
+  await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
+
+  res.json({ message: 'Category deleted' });
+}));
+
+// POST /api/checklists/:id/tasks — add task to category in checklist
+router.post('/:id/tasks', asyncHandler(async (req, res) => {
+  const checklistId = parseInt(req.params.id, 10);
+  if (isNaN(checklistId)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+
+  const parsed = createTaskSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0].message });
+    return;
+  }
+
+  const owned = await getOwnedChecklist(checklistId, req.userId);
+  if (!owned) {
+    res.status(404).json({ error: 'Checklist not found' });
+    return;
+  }
+
+  // Verify category belongs to this checklist
+  const catCheck = await pool.query(
+    'SELECT id FROM categories WHERE id = $1 AND checklist_id = $2',
+    [parsed.data.categoryId, checklistId]
+  );
+  if (catCheck.rows.length === 0) {
+    res.status(404).json({ error: 'Category not found' });
+    return;
+  }
+
+  const result = await pool.query(
+    `INSERT INTO tasks (category_id, title, completed, position)
+     VALUES ($1, $2, FALSE, COALESCE((SELECT MAX(position) FROM tasks WHERE category_id = $1), -1) + 1)
+     RETURNING id, category_id, title, completed, position`,
+    [parsed.data.categoryId, parsed.data.title]
+  );
+
+  await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
+
+  const row = result.rows[0];
+  res.status(201).json({
+    id: row.id,
+    categoryId: row.category_id,
+    title: row.title,
+    completed: row.completed,
+    position: row.position,
+  });
+}));
+
+// DELETE /api/checklists/:id/tasks/:taskId — delete task
+router.delete('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
+  const checklistId = parseInt(req.params.id, 10);
+  const taskId = parseInt(req.params.taskId, 10);
+  if (isNaN(checklistId) || isNaN(taskId)) {
+    res.status(400).json({ error: 'Invalid id' });
+    return;
+  }
+
+  const owned = await getOwnedChecklist(checklistId, req.userId);
+  if (!owned) {
+    res.status(404).json({ error: 'Checklist not found' });
+    return;
+  }
+
+  const result = await pool.query(
+    `DELETE FROM tasks
+     WHERE id = $1 AND category_id IN (
+       SELECT id FROM categories WHERE checklist_id = $2
+     )
+     RETURNING id`,
+    [taskId, checklistId]
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
+
+  await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
+
+  res.json({ message: 'Task deleted' });
+}));
+
+// PATCH /api/checklists/:id/tasks/:taskId  — update task completed status and/or title
 router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
   const checklistId = parseInt(req.params.id, 10);
   const taskId = parseInt(req.params.taskId, 10);
@@ -216,7 +417,7 @@ router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
     return;
   }
 
-  const parsed = setTaskSchema.safeParse(req.body);
+  const parsed = patchTaskSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.errors[0].message });
     return;
@@ -226,16 +427,30 @@ router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
   const owned = await getOwnedChecklist(checklistId, req.userId);
   if (!owned) { res.status(404).json({ error: 'Checklist not found' }); return; }
 
-  // Set the task's completed state
+  const updates = [];
+  const values = [];
+  let paramIndex = 1;
+
+  if (parsed.data.completed !== undefined) {
+    updates.push(`completed = $${paramIndex++}`);
+    values.push(parsed.data.completed);
+  }
+  if (parsed.data.title !== undefined) {
+    updates.push(`title = $${paramIndex++}`);
+    values.push(parsed.data.title);
+  }
+
+  values.push(taskId, checklistId);
+
   const result = await pool.query(
     `UPDATE tasks
-     SET completed = $1
-     WHERE id = $2
+     SET ${updates.join(', ')}
+     WHERE id = $${paramIndex++}
        AND category_id IN (
-         SELECT id FROM categories WHERE checklist_id = $3
+         SELECT id FROM categories WHERE checklist_id = $${paramIndex++}
        )
-     RETURNING id, completed`,
-    [parsed.data.completed, taskId, checklistId]
+     RETURNING id, category_id, title, completed`,
+    values
   );
 
   if (result.rows.length === 0) {
@@ -246,7 +461,13 @@ router.patch('/:id/tasks/:taskId', asyncHandler(async (req, res) => {
   // Update the checklist's updated_at timestamp
   await pool.query('UPDATE checklists SET updated_at = NOW() WHERE id = $1', [checklistId]);
 
-  res.json({ id: result.rows[0].id, completed: result.rows[0].completed });
+  const row = result.rows[0];
+  res.json({
+    id: row.id,
+    categoryId: row.category_id,
+    title: row.title,
+    completed: row.completed,
+  });
 }));
 
 module.exports = router;
